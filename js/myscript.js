@@ -1,14 +1,19 @@
 document.addEventListener("DOMContentLoaded", () => {
   const editorEl = document.getElementById("editor");
-  const resultEl = document.getElementById("resultArea");
+  const katexBox = document.getElementById("katexBox");
+  const latexBox = document.getElementById("latexBox");
   const eraserBtn = document.querySelector(".eraserForDraw");
   const clearBtn = document.querySelector(".cleanWorkArea");
   const themeBtn = document.getElementById("themeToggle");
+  const btnShotK = document.getElementById("shotKatex");
+  const btnShotL = document.getElementById("shotLatex");
+  let connected = false;
+  let connTimeout = null;
+  let typeTimeout = null;
   const joinSnd = document.getElementById("sndJoin");
-  const answerSnd = document.getElementById("sndAnswer");
-  let typingInt = null;
   joinSnd.volume = 0.4;
-  answerSnd.volume = 0.15;
+  const answSnd = document.getElementById("sndAnswer");
+  answSnd.volume = 0.12;
   const config = {
     recognitionParams: {
       type: "MATH",
@@ -16,8 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
       server: {
         scheme: "https",
         host: "cloud.myscript.com",
-        applicationKey: "" /* <=your API key myscript */,
-        hmacKey: "" /* <=your hmac key myscript */,
+        applicationKey: "433f522f-816d-4a50-a759-3a08dadb44b3",
+        hmacKey: "31ce930e-ab67-48cd-8b91-9b35d64739d2",
         websocket: { port: 443, path: "/websocket" },
       },
       math: {
@@ -29,191 +34,195 @@ document.addEventListener("DOMContentLoaded", () => {
   (async () => {
     await window.iink.register(editorEl, config, { grabber: customGrabber });
     const editor = editorEl.editor;
-    const applyPenColor = (dark) => {
-      editor.penStyle = {
-        color: dark ? "#ffffff" : "#000000",
-        width: 2,
-      };
+    const setColor = (dark) =>
+      (editor.penStyle = { color: dark ? "#fff" : "#000", width: 2 });
+    const darkInit = localStorage.theme === "dark";
+    if (darkInit) document.body.classList.add("dark");
+    setColor(darkInit);
+    themeBtn.textContent = darkInit ? "☀︎" : "🌙";
+    themeBtn.onclick = async () => {
+      const dark = document.body.classList.toggle("dark");
+      localStorage.theme = dark ? "dark" : "light";
+      themeBtn.textContent = dark ? "☀︎" : "🌙";
+      setColor(dark);
     };
-    async function recolorAllStrokes(color) {
-      const exports = await editor.exportContent({
-        mimeTypes: ["application/vnd.myscript.jiix"],
-      });
-      const jiix = exports["application/vnd.myscript.jiix"];
-      const obj = JSON.parse(jiix);
-      obj.units.forEach((unit) => {
-        unit.strokeGroups?.forEach((group) => {
-          group.penStyle.color = color;
-        });
-      });
-      editor.clear();
-      await editor.importContent({
-        "application/vnd.myscript.jiix": JSON.stringify(obj),
-      });
-    }
-    new ResizeObserver(() => editor.resize()).observe(editorEl);
     editorEl.addEventListener("exported", (evt) => {
       const latex = evt.detail.exports["application/x-latex"] || "";
-      resultEl.textContent = latex ? "" : "—";
+      katexBox.innerHTML = latex ? "" : "—";
+      latexBox.textContent = latex || "—";
       if (latex) {
-        window.katex.render(latex, resultEl, {
+        window.katex.render(latex, katexBox, {
           throwOnError: false,
           displayMode: true,
         });
       }
     });
-    const darkInit = localStorage.theme === "dark";
-    if (darkInit) document.body.classList.add("dark");
-    applyPenColor(darkInit);
-    themeBtn.textContent = darkInit ? "☀︎" : "🌙";
-    themeBtn.addEventListener("click", async () => {
-      const dark = document.body.classList.toggle("dark");
-      localStorage.theme = dark ? "dark" : "light";
-      themeBtn.textContent = dark ? "☀︎" : "🌙";
-      const newColor = dark ? "#ffffff" : "#000000";
-      applyPenColor(dark);
-      editor.theme(dark ? "dark" : "light");
-      await recolorAllStrokes(newColor);
-    });
     let erasing = false;
-    eraserBtn.addEventListener("click", () => {
+    eraserBtn.onclick = () => {
       erasing = !erasing;
       editor.isErasing = erasing;
       eraserBtn.classList.toggle("active", erasing);
-    });
-    clearBtn.addEventListener("click", () => {
-      editor.clear();
-    });
+    };
+    clearBtn.onclick = () => editor.clear();
+    new ResizeObserver(() => editor.resize()).observe(editorEl);
   })();
+  function savePng(node, name) {
+    html2canvas(node, { backgroundColor: null, scale: 2 }).then((cv) => {
+      const a = document.createElement("a");
+      a.download = name + ".png";
+      a.href = cv.toDataURL("image/png");
+      a.click();
+    });
+  }
+  btnShotK.onclick = () => savePng(katexBox, "formula");
+  btnShotL.onclick = () => savePng(latexBox, "latex");
   const modal = document.getElementById("photoModal");
-  const cpr = document.getElementById("copyright");
-  cpr.addEventListener("click", () => modal.classList.add("show"));
-  modal.addEventListener("click", () => modal.classList.remove("show"));
+  document.getElementById("copyright").onclick = () =>
+    modal.classList.add("show");
+  modal.onclick = () => modal.classList.remove("show");
   const helpBtn = document.getElementById("helpToggle");
   const panel = document.getElementById("helpPanel");
-  const bodyChat = document.getElementById("chatBody");
+  const body = document.getElementById("chatBody");
   const faqBox = document.getElementById("faqBtns");
-  const agentBar = document.getElementById("agentBar");
-  const btnClose = document.getElementById("chatClose");
-  const closeChat = () => {
-    panel.classList.remove("show");
-    agentBar.style.display = "none";
-    function resetChat() {
-      agentBar.style.display = "none";
-      bodyChat.innerHTML = '<p class="system">Вітаємо! Оберіть питання:</p>';
-      faqBox.innerHTML = "";
-      QA.forEach(({ q }, i) => {
-        const b = document.createElement("button");
-        b.textContent = q;
-        b.onclick = () => handleQuestion(i);
-        faqBox.appendChild(b);
+  const agent = document.getElementById("agentBar");
+  const btnX = document.getElementById("chatClose");
+  const QA = [
+    {
+      q: "Як стерти неправильний символ?",
+      a: "Натисніть «Гумка/Олівець» і проведіть по ньому.",
+    },
+    {
+      q: "Чи працює без інтернету?",
+      a: "Ні. Розпізнавання відбувається на сервері MyScript.",
+    },
+    {
+      q: "Як зберегти формулу у LaTeX?",
+      a: "Скопіюйте готовий код під полотном.",
+    },
+  ];
+  let typingInt = null;
+  let connectInt = null;
+  function renderFAQ() {
+    const box = document.getElementById("faqBtns");
+    box.innerHTML = "";
+    QA.forEach(({ q }, i) => {
+      const b = document.createElement("button");
+      b.textContent = q;
+      b.onclick = () => ask(i);
+      box.appendChild(b);
+    });
+  }
+  resetChat();
+  function resetChat() {
+    connected = false;
+    agent.style.display = "none";
+    agent.style.display = "none";
+    body.innerHTML =
+      '<p class="system">Вітаємо! Оберіть питання:</p>' +
+      '<div id="faqBtns" class="faq"></div>';
+    renderFAQ();
+    [joinSnd, answSnd].forEach((s) => {
+      s.pause();
+      s.currentTime = 0;
+      s.loop = false;
+      [connTimeout, typeTimeout].forEach((id) => {
+        if (id) {
+          clearTimeout(id);
+        }
       });
-      if (typingInt) {
-        clearInterval(typingInt);
-        typingInt = null;
-      }
-      [joinSnd, answerSnd].forEach((s) => {
+      connTimeout = typeTimeout = null;
+      [joinSnd, answSnd].forEach((s) => {
         s.pause();
         s.currentTime = 0;
         s.loop = false;
       });
-    }
-    btnClose.onclick = closeChat;
-    function closeChat() {
+    });
+  }
+  const closeChat = () => {
+    panel.classList.remove("show");
+    resetChat();
+  };
+  btnX.onclick = closeChat;
+  helpBtn.onclick = () => {
+    if (panel.classList.contains("show")) {
       panel.classList.remove("show");
       resetChat();
-    }
-    if (typingInt) {
-      clearInterval(typingInt);
-      typingInt = null;
-    }
-    joinSnd.pause();
-    joinSnd.currentTime = 0;
-    answerSnd.pause();
-    answerSnd.currentTime = 0;
-    answerSnd.loop = false;
-    bodyChat.innerHTML = `<p class="system">Вітаємо! Оберіть питання:</p>`;
-    faqBox.innerHTML = "";
-    QA.forEach(({ q }, i) => {
-      const b = document.createElement("button");
-      b.textContent = q;
-      b.onclick = () => handleQuestion(i);
-      faqBox.appendChild(b);
-    });
-  };
-  helpBtn.onclick = () => {
-    if (panel.classList.contains("show")) closeChat();
-    else {
-      resetChat();
+    } else {
       panel.classList.add("show");
     }
   };
-  document.getElementById("chatClose").onclick = closeChat;
-  helpBtn.onclick = () => panel.classList.toggle("show");
-  const QA = [
-    {
-      q: "Як стерти з дошки неправильно написане?",
-      a: "Натисніть «Олівець/Гумка», і проведіть по неправильно введеному символу.",
-    },
-    {
-      q: "Чи працює без інтернету?",
-      a: "Розпізнавання формул потребує з’єднання з сервером MyScript.",
-    },
-    {
-      q: "Чи виводить сайт всі математичні знаки?",
-      a: "Так, підтрмує усі математичні знаки та надає можливість скопіювати LaTeX-результат і вставити у свій документ.",
-    },
-  ];
-  QA.forEach(({ q }, i) => {
-    const b = document.createElement("button");
-    b.textContent = q;
-    b.onclick = () => handleQuestion(i);
-    faqBox.appendChild(b);
-  });
-  function handleQuestion(idx) {
-    const { q, a } = QA[idx];
-    bodyChat.insertAdjacentHTML("beforeend", `<p class="user">${q}</p>`);
-    faqBox.innerHTML = "";
-    bodyChat.insertAdjacentHTML(
-      "beforeend",
-      `<p class="system">Підключаємось до оператора…</p>`
-    );
-    setTimeout(() => {
-      joinSnd.currentTime = 0;
-      joinSnd.play();
-      agentBar.style.display = "flex";
-      bodyChat.insertAdjacentHTML(
+  function ask(i) {
+    [".connect", ".typing"].forEach((sel) => {
+      const old = body.querySelector(sel);
+      if (old) old.remove();
+    });
+    [connectInt, typingInt].forEach((id) => {
+      if (id) {
+        clearInterval(id);
+      }
+    });
+    connectInt = typingInt = null;
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    const { q, a } = QA[i];
+    body.insertAdjacentHTML("beforeend", `<p class="user">${q}</p>`);
+    document.getElementById("faqBtns").innerHTML = "";
+    if (!connected) {
+      body.insertAdjacentHTML(
         "beforeend",
-        `<p class="system">Олег приєднався ✅</p>
-       <p class="system">Олег друкує<span class="dots">...</span></p>`
+        `<p class="system connect">Підключення<span class="dots">...</span></p>`
       );
-      const dots = bodyChat.querySelector(".dots");
+      const connDots = body.querySelector(".connect .dots");
       let d = 0;
-      typingInt = setInterval(() => {
-        dots.textContent = ".".repeat(++d % 4);
-      }, 400);
-      answerSnd.loop = true;
-      answerSnd.currentTime = 0;
-      answerSnd.play();
-      setTimeout(() => {
+      connectInt = setInterval(
+        () => (connDots.textContent = ".".repeat(++d % 4)),
+        400
+      );
+    }
+    const startDelay = connected ? 0 : 3500;
+    connTimeout = setTimeout(() => {
+      if (!connected) {
+        if (connectInt) {
+          clearInterval(connectInt);
+          connectInt = null;
+        }
+        joinSnd.play();
+        agent.style.display = "flex";
+        body.querySelector(".connect").remove();
+        body.insertAdjacentHTML(
+          "beforeend",
+          `<p class="system">Олег приєднався ✅</p>`
+        );
+        connected = true;
+      }
+      body.insertAdjacentHTML(
+        "beforeend",
+        `<p class="system typing">Олег друкує<span class="dots">...</span></p>`
+      );
+      const typeDots = body.querySelector(".typing .dots");
+      let t = 0;
+      typingInt = setInterval(
+        () => (typeDots.textContent = ".".repeat(++t % 4)),
+        400
+      );
+      document.getElementById("faqBtns").innerHTML = "";
+      answSnd.loop = true;
+      answSnd.play();
+      typeTimeout = setTimeout(() => {
         clearInterval(typingInt);
         typingInt = null;
-        answerSnd.loop = false;
-        answerSnd.pause();
-        answerSnd.currentTime = 0;
-        bodyChat.insertAdjacentHTML(
+        answSnd.loop = false;
+        answSnd.pause();
+        answSnd.currentTime = 0;
+        body.querySelector(".typing").remove();
+        body.insertAdjacentHTML(
           "beforeend",
-          `<p class="operator">${a}</p>`
+          `<p class="operator">${QA[i].a}</p>`
         );
-        faqBox.innerHTML = "";
-        QA.forEach(({ q }, i) => {
-          const b = document.createElement("button");
-          b.textContent = q;
-          b.onclick = () => handleQuestion(i);
-          faqBox.appendChild(b);
-        });
-        bodyChat.scrollTop = bodyChat.scrollHeight;
-      }, 4500);
-    }, 4000);
+        renderFAQ();
+        body.scrollTop = body.scrollHeight;
+      }, 2500);
+    }, startDelay);
   }
 });

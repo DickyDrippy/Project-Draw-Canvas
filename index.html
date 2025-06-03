@@ -8,6 +8,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="js/customGrabber.js"></script>
     <script defer src="js/myscript.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" >
     <title>Введення математичних формул</title>
@@ -24,9 +25,7 @@
     <span>Служба підтримки</span>
     <button id="chatClose">✕</button>
   </header>
-
   <div id="chatBody" class="body">
-    <p class="system">Вітаємо! Оберіть питання:</p>
     <div id="faqBtns" class="faq"></div>
   </div>
 </aside>
@@ -42,6 +41,26 @@
                 </div>
             </div>    
         </header>
+        <section id="drawArea" class="workArea">
+  <h3 class="workAreaTitle">Отримуйте швидкий доступ до потрібної формули</h3>
+  <p class="workAreaDescr">Просто почніть акуратно малювати необхідний вираз комп'ютерною мишкою, пальцем чи стилусом, та швидко отримайте готовий результат</p>
+  <div class="workAreaDiv">
+      <div id="editor" class="workAreaCanvas"></div>
+      <div class="buttonsDiv">
+          <button class="eraserForDraw">Гумка/Олівець</button>
+          <button class="cleanWorkArea">Очистити</button>
+      </div>
+  </div>
+<h3 class="resultFormula">Ваша готова формула</h3>
+<div class="resultWrap">
+  <div id="katexBox"   class="resultLand"></div>
+  <pre id="latexBox"   class="latexLand"></pre>
+</div>
+<div class="shotBtns">
+  <button id="shotKatex">Зберегти фото математичним форматом</button>
+  <button id="shotLatex">Зберегти фото текствим форматом</button>
+</div>
+</section>
         <section id="about" class="mainPage">
             <div class="siteTitleDiv">
                 <h1 class="siteTitle">Рукописне введення математичних формул</h1>
@@ -69,20 +88,6 @@
                 <button class="toWorkArea" onclick="document.getElementById('drawArea').scrollIntoView({ behavior: 'smooth' });">Почати</button>
             </div>
         </section>
-        <section id="drawArea" class="workArea">
-  <h3 class="workAreaTitle">Отримуйте швидкий доступ до потрібної формули</h3>
-  <p class="workAreaDescr">Просто почніть акуратно малювати необхідний вираз комп'ютерною мишкою, пальцем чи стилусом, та швидко отримайте готовий результат</p>
-
-  <div class="workAreaDiv">
-      <div id="editor" class="workAreaCanvas"></div>
-      <div class="buttonsDiv">
-          <button class="eraserForDraw">Гумка/Олівець</button>
-          <button class="cleanWorkArea">Очистити</button>
-      </div>
-  </div>
-  <h3 class="resultFormula">Ваша готова формула</h3>
-  <p id="resultArea" class="resultLand"></p>
-</section>
         <footer id="footerArea" class="footerContainer">
             <div class="footerMails">
                 <p class="footerItem footerCredits"><span id="copyright">© 2025</span> Технологічна практика 2025. Проєкт розробили Данило Магдик, Олександр Дідківський</p>
