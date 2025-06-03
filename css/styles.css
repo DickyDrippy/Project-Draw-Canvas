@@ -163,15 +163,13 @@ h3 {
   background-image: url("../imges/111.jpg");
 }
 .icon.teacher {
-  background-image: url("../imges/sticker.webp");
+  background-image: url("../imges/0d890e18-7b1f-4a93-8130-9d21f863a441.png");
 }
 .icon.user {
-  background-image: url("../imges/124.jpg");
+  background-image: url("../imges/6c1a2c85-6bb3-4d41-8ee7-dd856e2997ad.png");
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  border-radius: 0%;
-  width: 100px;
 }
 .card-title {
   font-size: 1.2em;
@@ -388,7 +386,7 @@ body {
 }
 body.dark .fab {
   background: #ffb300;
-} /* інший колір у темній темі */
+}
 body.dark .eraserForDraw,
 body.dark .cleanWorkArea {
   color: #fff;
@@ -437,6 +435,8 @@ body.dark .fab.help {
   background: var(--section-bg);
   box-shadow: -4px 0 12px var(--shadow);
   z-index: 2100;
+  display: flex;
+  flex-direction: column;
 }
 .chat.show {
   right: 0;
@@ -536,4 +536,37 @@ body.dark .fab.help {
 body.dark .chat .operator {
   background: #2b2b2b;
   color: #fff;
+}
+.resultWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.latexLand {
+  background: var(--canvas-bg);
+  color: var(--fg);
+  padding: 12px 16px;
+  border-radius: 8px;
+  max-width: 700px;
+  overflow: auto;
+  font-family: "Consolas", monospace;
+}
+.shotBtns {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.shotBtns button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #3498db;
+  color: #fff;
+  transition: 0.3s;
+}
+.shotBtns button:hover {
+  background: #2b7cb8;
 }
